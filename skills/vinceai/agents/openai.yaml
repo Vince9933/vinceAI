@@ -1,0 +1,4 @@
+interface:
+  display_name: "vinceAI"
+  short_description: "制作中文口播短视频、真实素材动效与横竖两版视频封面"
+  default_prompt: "用 $vinceai 剪这条口播，再做 3:4 和 4:3 两张封面。"
