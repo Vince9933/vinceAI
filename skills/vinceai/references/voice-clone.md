@@ -1,12 +1,17 @@
 # 授权音色配音
 
-不出镜、只有脚本或需要讲解旁白时，可以把授权的克隆音色接到 vinceAI。已有批准的音轨时直接进入剪辑和字幕对齐。复用已获授权的音色配置前，确认当前项目仍在授权范围内。
+只有脚本或需要克隆旁白时，使用本人或已授权的参考音色。有已确认的旁白时先核对文案、语速与增益，再接入剪辑。参考录音、逐字转写和音色配置留在授权范围内的工作区。
+
+## 合成自然口播
+
+1. 参考干声选清楚、安静、语气贴合当期内容的一段，听得见原说话人的停连、轻重和换气。给参考录音配逐字一致的 UTF-8 转写，保留实际念出来的字。沿用已确认的音色提示，试听音色和讲话方式。
+2. 把口播稿整理成连续的完整语义段。让设问和回应、观点和解释、数字和量词尽量留在同一段。用标点和段落表达语气与停顿。字幕按自己的字符限制另行分屏。发现错读或语气跳变时，优先重生成受影响的完整语义段，模型漏词或截尾时再按句意拆短。
+3. 合成稿和字幕稿分别核对。把容易读错的人名、品牌、日期、金额、百分比和单位写成已确认的口读形式。合成后逐处听核，字幕保留约定的书写形式。
+4. 听单段也听相邻段。根据设问、转折、句尾和换气收放停顿。保留有表达作用的尾音、呼吸和停连，在实际接缝试听首尾是否连贯。
 
 ## 用 Qwen3-TTS 本地合成
 
-- 准备 Qwen3-TTS Python 环境、FFmpeg 和已下载的 [Qwen3-TTS-12Hz-0.6B-Base](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-Base)。下面示例走支持 BF16 的 CUDA 显卡和 SDPA。安装与替代运行方式见 [Qwen3-TTS 官方文档](https://github.com/QwenLM/Qwen3-TTS)。
-- 准备一段本人或已授权、清楚且无混入其他说话人的干声，再准备逐字一致的 UTF-8 转写。把干声、转写和脚本保存在本项目约定的私有工作区。先合成一小段，核对音色、普通话读法和停连。
-- 将下方示例保存为 `synthesize.py`，给出本地模型目录、参考音频、参考转写、口播稿和输出文件。口播稿较长时按完整语义切成数句，保持同一个音色提示，逐段检查并拼接。品牌、数值和量词可在合成稿里改成正确读音，屏幕字幕保留原写法。
+准备 Qwen3-TTS Python 环境、FFmpeg 和 [支持参考音频的 Base 模型](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-Base)。示例使用支持 BF16 的 CUDA 显卡和 SDPA，一次合成一个完整语义段。批量制作可复用同一个 `voice_clone_prompt`，逐段听核后拼接干声。安装和接口见 [Qwen3-TTS 官方文档](https://github.com/QwenLM/Qwen3-TTS)。
 
 ```python
 import sys
@@ -39,14 +44,23 @@ with torch.inference_mode():
         language="Chinese",
         voice_clone_prompt=voice,
     )
-soundfile.write(output, waves[0], sample_rate, subtype="PCM_16")
+soundfile.write(output, waves[0], sample_rate, subtype="FLOAT")
 ```
 
 ```shell
 python synthesize.py ./model ./reference.wav ./reference.txt ./script.txt ./narration-raw.wav
-ffmpeg -n -i narration-raw.wav -af "atempo=1.1,volume=7dB:precision=double,aresample=48000,alimiter=limit=0.84:level=0:latency=1" -c:a pcm_s24le narration.wav
 ```
 
-克隆配音默认先做 **1.1 倍**保音高变速，再以浮点精度给旁白加 **+7 dB**，重采样到 48 kHz 后限幅。示例限制样本峰值到 0.84，关闭限幅器的自动补偿增益。输出只含人声的 24 位 WAV。配乐在剪辑阶段单独控制音量，保留已设定的旁白增益。
+## 变速、增益与试听
 
-已调速或增益的音轨只补未处理的步骤。试听检查爆音、重读和句尾。记录模型、已应用的语速和增益、试听范围。用最终 WAV 做字幕时间轴，多个画幅共用音轨与时间轴，并按各画幅检查断行和安全区。
+- 口播定稿后先做 **1.1 倍**保音高变速。按变速后实际峰值留余量，再以浮点精度对人声施加 **+7 dB**。先测电平，需要时在 +7 dB 前调低基础电平，使限幅器只保护偶发尖峰。记录基础调整、增益级和最终实测电平。已经处理过的音轨只补缺少的步骤。
+- 下方命令先检查经过变速、重采样的干声。以成品峰值上限 −1.5 dBTP、计划增益 +7 dB、额外余量 1 dB 为例，变速后干声峰值的目标是 −9.5 dBTP。实测为 −6.5 dBTP 时，可在 `volume=7dB` 前加入 `volume=-3dB:precision=double`，把峰值降到目标。限幅器关闭自动补偿，输出后复测真峰值。若能听出字头变钝、尾音被压或音量起伏，检查原段和增益前余量。
+- 试听新旧配音时，用同一段文案、相同播放响度的纯人声片段对比，听重音、音色、停连和接缝。匹配响度只用于试听副本。用户只要人声时输出独立 WAV，跳过 BGM。做成片时配乐独立混音，以最终剪好的人声对齐字幕和画面。
+
+```shell
+ffmpeg -hide_banner -i narration-raw.wav -af "atempo=1.1,aresample=48000,ebur128=peak=true" -f null -
+ffmpeg -n -i narration-raw.wav -af "atempo=1.1,aresample=48000,volume=7dB:precision=double,alimiter=limit=0.84:attack=5:release=68:level=0:latency=1" -c:a pcm_s24le narration.wav
+ffmpeg -hide_banner -i narration.wav -af "ebur128=peak=true" -f null -
+```
+
+记录参考音色、所用模型、实际处理参数和试听范围。多个画幅共用人声和字幕时间轴，分别检查字幕断行与安全区。
