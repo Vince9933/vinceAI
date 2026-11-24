@@ -44,7 +44,9 @@ soundfile.write(output, waves[0], sample_rate, subtype="PCM_16")
 
 ```shell
 python synthesize.py ./model ./reference.wav ./reference.txt ./script.txt ./narration-raw.wav
-ffmpeg -n -i narration-raw.wav -af atempo=1.1 -ar 48000 -c:a pcm_s24le narration.wav
+ffmpeg -n -i narration-raw.wav -af "atempo=1.1,volume=7dB:precision=double,aresample=48000,alimiter=limit=0.84:level=0:latency=1" -c:a pcm_s24le narration.wav
 ```
 
-视频工程统一使用最终配音做字幕时间轴。按用户确认的语速使用保留音高的变速，已调速的音轨直接接入。试听检查爆音、重读和句尾，按听感调人声增益并保留峰值余量。记录模型、已应用的语速和试听范围。同一段口播的多个画幅共用 WAV 和字幕时间轴，并按各画幅检查断行和安全区。
+克隆配音默认先做 **1.1 倍**保音高变速，再以浮点精度给旁白加 **+7 dB**，重采样到 48 kHz 后限幅。示例限制样本峰值到 0.84，关闭限幅器的自动补偿增益。输出只含人声的 24 位 WAV。配乐在剪辑阶段单独控制音量，保留已设定的旁白增益。
+
+已调速或增益的音轨只补未处理的步骤。试听检查爆音、重读和句尾。记录模型、已应用的语速和增益、试听范围。用最终 WAV 做字幕时间轴，多个画幅共用音轨与时间轴，并按各画幅检查断行和安全区。
