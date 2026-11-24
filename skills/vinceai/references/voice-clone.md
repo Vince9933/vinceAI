@@ -11,7 +11,9 @@
 
 ## 用 Qwen3-TTS 本地合成
 
-准备 Qwen3-TTS Python 环境、FFmpeg 和 [支持参考音频的 Base 模型](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-Base)。示例使用支持 BF16 的 CUDA 显卡和 SDPA，一次合成一个完整语义段。批量制作可复用同一个 `voice_clone_prompt`，逐段听核后拼接干声。安装和接口见 [Qwen3-TTS 官方文档](https://github.com/QwenLM/Qwen3-TTS)。
+新克隆任务默认使用 [Qwen3-TTS-12Hz-1.7B-Base](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base)。准备 Qwen3-TTS Python 环境和 FFmpeg，运行时明确传入所选的本地模型目录。示例使用支持 BF16 的 CUDA 显卡和 SDPA，一次合成一个完整语义段。批量制作可复用同一个 `voice_clone_prompt`，逐段听核后拼接干声。安装和接口见 [Qwen3-TTS 官方文档](https://github.com/QwenLM/Qwen3-TTS)。
+
+显存紧张时先逐个合成语义段。权重或运行条件确实受限时，可使用 0.6B Base，并在本期记录和交付中写清实际用的模型。
 
 ```python
 import sys
@@ -48,7 +50,7 @@ soundfile.write(output, waves[0], sample_rate, subtype="FLOAT")
 ```
 
 ```shell
-python synthesize.py ./model ./reference.wav ./reference.txt ./script.txt ./narration-raw.wav
+python synthesize.py ./Qwen3-TTS-12Hz-1.7B-Base ./reference.wav ./reference.txt ./script.txt ./narration-raw.wav
 ```
 
 ## 变速、增益与试听
